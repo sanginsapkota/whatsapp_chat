@@ -33,6 +33,19 @@ class DeliveryTracking extends Model
         ];
     }
 
+    protected static function booted(): void
+    {
+        static::saving(function (self $tracking): void {
+            if ($tracking->isDirty('rider_id') && $tracking->rider_id && $tracking->assigned_at === null) {
+                $tracking->assigned_at = now();
+
+                if ($tracking->status === DeliveryStatus::Preparing) {
+                    $tracking->status = DeliveryStatus::Assigned;
+                }
+            }
+        });
+    }
+
     /**
      * @return BelongsTo<Order, $this>
      */
