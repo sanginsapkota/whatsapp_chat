@@ -19,7 +19,19 @@ return Application::configure(basePath: dirname(__DIR__))
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // The app sits behind a reverse proxy (nginx/Cloudflare) at smm.bitflux.com.np.
+        // Trust the standard X-Forwarded-* headers from it so Laravel resolves the real
+        // client IP/scheme instead of the proxy's — required for correct HTTPS URLs,
+        // secure cookies, and the WhatsApp webhook's IP in logs.
         //
+        // TRUSTED_PROXIES defaults to "*" (trust whatever is in front of the app, which
+        // is the normal setup when the server itself isn't directly internet-facing).
+        // Set it to the proxy's actual IP(s)/CIDR in .env if that assumption doesn't hold.
+        $trustedProxies = trim((string) env('TRUSTED_PROXIES', '*'));
+
+        $middleware->trustProxies(
+            at: $trustedProxies === '*' ? '*' : array_filter(array_map('trim', explode(',', $trustedProxies))),
+        );
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
